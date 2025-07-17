@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
+
 import torch
 import torchdiffeq
-import cvxpy as cp
+
 
 class Sampler(ABC):
     @abstractmethod
     def forward(self, t, x):
         pass
 
-    def sample(self, ic, conditions,ts=10.0, num_steps=10):
+    def sample(self, ic, conditions, ts=10.0, num_steps=10):
         """
         Sample from a vector field using the ODE solver.
         Args:
@@ -20,6 +21,7 @@ class Sampler(ABC):
         Returns:
             The sampled trajectory.
         """
+        self.conditions = conditions
         return torchdiffeq.odeint(
             self.forward,
             ic,
@@ -29,21 +31,18 @@ class Sampler(ABC):
             method="rk4",
         )
 
+
 class NominalSampler(Sampler):
     def __init__(self, model):
         self.model = model
-        self.conditions = conditions
-    
-    def forward(self, t, x):
-        return self.model.forward(t / ts, x) / ts
+        self.conditions = None
+
+    def forward(self, t, x, ts=1):
+        # TODO: I forgot why I added the ts here...
+        return self.model(t / ts, x, self.conditions) / ts
 
 
-def sample_from_ode(vector_field, ic, ts=10.0, num_steps=10):
-
-def model_nominal_vf(t, x, model=model):
-    return model.forward(t / ts, x) / ts
-
-
+"""
 def forward_w_cbf(t, x, model=model, classifier=classfier):
     flow_grad = model.forward(t / ts, x) / ts
     x_cp = x.clone().flatten(1).requires_grad_(True)
@@ -81,3 +80,4 @@ traj_w = torchdiffeq.odeint(
     rtol=1e-4,
     method="rk4",
 )
+"""
