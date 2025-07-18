@@ -5,6 +5,9 @@ import torchcfm.conditional_flow_matching as cfm
 def train_fm_model(
     model, train_loader, n_epochs, sigma, val_loader=None, conditioned=False
 ):
+def train_fm_model(
+    model, train_loader, n_epochs, sigma, val_loader=None, conditioned=False
+):
     # Default to using cuda > mps > cpu
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -19,6 +22,7 @@ def train_fm_model(
 
     for epoch in range(n_epochs):
         for i, data in enumerate(train_loader):
+        for i, data in enumerate(train_loader):
             optimizer.zero_grad()
             if conditioned:
                 x1, y = data[0].to(device), data[1].to(device)
@@ -32,8 +36,9 @@ def train_fm_model(
                 vt = model(t, xt)
             train_loss = torch.mean((vt - ut) ** 2)
             train_loss.backward()
+            train_loss = torch.mean((vt - ut) ** 2)
+            train_loss.backward()
             optimizer.step()
-        # print(f"Epoch {epoch:02d} Training loss: {train_loss.item():.4f}")
 
         if val_loader is not None and epoch % 2 == 0:
             with torch.no_grad():
@@ -51,7 +56,8 @@ def train_fm_model(
                         vt = model(t, xt)
                     val_loss += torch.mean((vt - ut) ** 2).item()
                 print(
-                    f"Epoch {epoch:02d} Validation loss: {val_loss / len(val_loader):.4f}"
+                    f"Epoch {epoch:03d}\t Training loss: {train_loss.item():.4f}\t"
+                    f"Validation loss: {val_loss / len(val_loader):.4f}"
                 )
 
     torch.save(model.state_dict(), f"models/model_{epoch}.pth")

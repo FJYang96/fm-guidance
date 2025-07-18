@@ -10,5 +10,19 @@ __pycache__/
 *.pyzwz
 *.pyzwzw
 
+# Images
+*.png
+*.gif
+
+# Models
 models/
 data/
+
+# Logs
+logs/
+
+# Checkpoints
+checkpoints/
+
+# Results
+results/
