@@ -22,6 +22,12 @@ class SinusoidalTimeEmbedding(nn.Module):
         half_dim = self.embed_dim // 2
         emb = np.log(10000) / (half_dim - 1)
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
+
+        # TODO: add handling for x of dimension 2
+        # Handle scalar tensors by adding a dimension
+        if x.dim() == 0:
+            x = x.unsqueeze(0)
+
         emb = x[:, None] * emb[None, :]
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
         return emb

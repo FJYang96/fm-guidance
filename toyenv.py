@@ -175,6 +175,7 @@ class Environment2D:
         goal: Tuple[float, float],
         num_steps: int,
         num_trajectories: int = 5,
+        noise_std: float = 0.01,
     ) -> List[np.ndarray]:
         """
         Generate multiple smooth trajectories from start to goal.
@@ -192,7 +193,6 @@ class Environment2D:
 
         for i in range(num_trajectories):
             # Vary the noise for different trajectories
-            noise_std = 0.1 + 0.05 * i
             trajectory = self.generate_smooth_trajectory(
                 start, goal, num_steps, noise_std
             )

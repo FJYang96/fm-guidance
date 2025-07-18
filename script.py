@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -11,18 +12,13 @@ from guidance import NominalSampler
 # Gather trajectories for training
 env = toyenv.Environment2D(bounds=(0.0, 10.0, 0.0, 10.0))
 
-# Add some obstacles for diversity
-env.add_obstacle((3.0, 3.0), 1.0)
-env.add_obstacle((7.0, 7.0), 0.8)
-env.add_rectangular_obstacle(1.0, 2.0, 6.0, 8.0)
-
 # Parameters
-data_num_samples = 200  # number of (start, goal) pairs
-num_trajectories_per_pair = 3
-num_steps = 64
+data_num_samples = 50  # number of (start, goal) pairs
+num_trajectories_per_pair = 100
+num_steps = 32
 batch_size = 64
-n_epochs = 100
-sigma = 1.0
+n_epochs = 200
+sigma = 0.0
 
 # Generate dataset
 starts = []
@@ -32,7 +28,7 @@ for _ in range(data_num_samples):
     start = env.sample_start_position()
     goal = env.sample_goal_position()
     trajs = env.generate_multiple_trajectories(
-        start, goal, num_steps, num_trajectories_per_pair
+        start, goal, num_steps, num_trajectories_per_pair, noise_std=0.1
     )
     for traj in trajs:
         starts.append(start)
@@ -42,6 +38,8 @@ for _ in range(data_num_samples):
 starts = np.array(starts, dtype=np.float32)  # (N, 2)
 goals = np.array(goals, dtype=np.float32)  # (N, 2)
 trajectories = np.array(trajectories, dtype=np.float32)  # (N, num_steps, 2)
+
+env.visualize_environment(starts[0], goals[0], trajectories[:10])
 
 
 class TrajectoryDataset(Dataset):
@@ -64,7 +62,11 @@ class TrajectoryDataset(Dataset):
 
 
 dataset = TrajectoryDataset(starts, goals, trajectories)
-train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+train_dataset, test_dataset = torch.utils.data.random_split(
+    dataset, [0.8, 0.2], generator=torch.Generator().manual_seed(42)
+)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
 models = [
     MLP(
@@ -79,13 +81,40 @@ models = [
         transition_dim=2,
         cond_dim=4,
         dim=32,
-        dim_mults=(1, 2, 4, 8),
+        dim_mults=(1, 2, 4),
         attention=False,
     ),
 ]
 
-x, y = dataset[0:1]
-t = torch.ones(x.shape[0]) * 0.5
+model = models[1]
+conditioned = True
 
-train.train_fm_model(models[0], train_loader, n_epochs, sigma, conditioned=True)
-train.train_fm_model(models[1], train_loader, n_epochs, sigma, conditioned=True)
+train.train_fm_model(
+    model,
+    train_loader,
+    n_epochs,
+    sigma,
+    conditioned=conditioned,
+    val_loader=test_loader,
+)
+
+
+# Visualize samples for both models
+test_start = starts[0]
+test_goal = goals[0]
+conditions = (
+    (
+        torch.from_numpy(np.concatenate([test_start, test_goal], axis=-1))
+        .unsqueeze(0)
+        .float()
+    )
+    if conditioned
+    else None
+)
+
+sampler = NominalSampler(model)
+trajectory = sampler.sample(
+    torch.randn(10, num_steps, 2), conditions, ts=1, num_steps=num_steps
+)
+
+env.visualize_environment(test_start, test_goal, trajectory[-1].detach().cpu().numpy())

@@ -25,7 +25,7 @@ class Sampler(ABC):
         return torchdiffeq.odeint(
             self.forward,
             ic,
-            torch.linspace(0, ts, num_steps, device=ic.device),
+            torch.linspace(0, ts, num_steps, device=ic.device).float(),
             atol=1e-4,
             rtol=1e-4,
             method="rk4",
