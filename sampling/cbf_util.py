@@ -19,7 +19,7 @@ class CBF:
         self.f = f
         self.g = g
         self.h = h
-        self.jac_h = jac_h
+        self.jac_h_funcs = jac_h
         self.alpha = alpha
 
     def evaluate_cbf_condition(self, x: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -32,6 +32,15 @@ class CBF:
         alpha_x = torch.stack([alpha(h_x) for alpha in self.alpha], dim=1)
         # TODO: make the shapes match in the return computation
         return jac_h @ (self.f(x) + self.g(x) @ u) + alpha_x
+
+    def jac_h(self, x: torch.Tensor) -> torch.Tensor:
+        if self.jac_h_funcs is None:
+            x_ = x.clone().requires_grad_(True)
+            h_x = self.h[0](x_)
+            grad_h = torch.autograd.grad(h_x.sum(), x_)[0]
+            return grad_h
+        else:
+            return torch.stack([jac_h(x) for jac_h in self.jac_h_funcs], dim=1)
 
     def __call__(self, x: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
         """
@@ -60,16 +69,15 @@ class CBFQP:
             raise ValueError(f"Unknown method: {self.method}")
 
     def _solve_closed_form(self, x: torch.Tensor, u_nom: torch.Tensor) -> torch.Tensor:
-        # TODO: make this work for multiple CBFs
+        assert len(self.cbf.h) == 1, "Closed-form solver only supports single CBF"
         Pinv = (
             torch.linalg.pinv(self.P)
             if self.P is not None
             else torch.eye(x.shape[1], device=x.device)
         )
-        x_ = x.clone().requires_grad_(True)
-        h_x = self.h(x_)
-        grad_h = torch.autograd.grad(h_x.sum(), x_)[0]
-        constr = (grad_h * u_nom).sum(dim=1) + self.alpha(h_x)
+        h_x = self.cbf.h[0](x)
+        grad_h = self.cbf.jac_h(x)
+        constr = (grad_h * u_nom).sum(dim=1) + self.cbf.alpha[0](h_x)
         mult = torch.minimum(constr, torch.zeros_like(constr)) / torch.sum(
             grad_h * (grad_h @ Pinv), dim=1
         )
