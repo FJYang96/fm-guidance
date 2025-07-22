@@ -88,10 +88,6 @@ class CBFGuidedSamplerBackup(Sampler):
         mult = torch.minimum(constr, torch.zeros_like(constr)) / torch.sum(
             grad_h * (grad_h @ Pinv), dim=1
         )
-        if mult.sum() > 0:
-            print(h_x[:5])
-            print(mult[:5])
-            print("-" * 100)
         return u_nom - mult.unsqueeze(1) * grad_h @ Pinv.T
 
     def _solve_cbf_qp_cvxpy(self, x: torch.Tensor) -> torch.Tensor:

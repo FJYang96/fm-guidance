@@ -5,9 +5,6 @@ import torchcfm.conditional_flow_matching as cfm
 def train_fm_model(
     model, train_loader, n_epochs, sigma, val_loader=None, conditioned=False
 ):
-def train_fm_model(
-    model, train_loader, n_epochs, sigma, val_loader=None, conditioned=False
-):
     # Default to using cuda > mps > cpu
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -21,7 +18,6 @@ def train_fm_model(
     optimizer = torch.optim.Adam(model.parameters())
 
     for epoch in range(n_epochs):
-        for i, data in enumerate(train_loader):
         for i, data in enumerate(train_loader):
             optimizer.zero_grad()
             if conditioned:

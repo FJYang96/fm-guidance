@@ -73,6 +73,8 @@ def visualize_diffusion(trajectory, start, goal):
         plt.clf()
         plt.xlim(env.x_min, env.x_max)
         plt.ylim(env.y_min, env.y_max)
+        plt.gca().set_aspect("equal")
+        plt.grid(True, alpha=0.3)
         plt.scatter(
             trajectory[t, :, 0],
             trajectory[t, :, 1],
@@ -92,7 +94,7 @@ def visualize_diffusion(trajectory, start, goal):
         )
         plt.legend()
         plt.savefig("diffusion.png")
-        images.append(imageio.imread("diffusion.png"))
+        images.append(imageio.v2.imread("diffusion.png"))
     os.remove("diffusion.png")
     plt.close()
 
