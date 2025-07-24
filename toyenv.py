@@ -1,11 +1,10 @@
 import random
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from scipy.interpolate import interp1d
-
-import sampling.cbf_util as cbf_util
 
 
 class Environment2D:
@@ -107,13 +106,11 @@ class Environment2D:
         hs, jac_hs = [], []
         for obstacle in self.obstacles:
             if obstacle["type"] == "circle":
-                hs += cbf_util.circular_barrier(obstacle["center"], obstacle["radius"])
-                jac_hs += cbf_util.circular_barrier_jac(
-                    obstacle["center"], obstacle["radius"]
-                )
+                hs += circular_barrier(obstacle["center"], obstacle["radius"])
+                jac_hs += circular_barrier_jac(obstacle["center"], obstacle["radius"])
             elif obstacle["type"] == "rectangle":
-                hs += cbf_util.rectangular_barrier(*obstacle["bounds"])
-                jac_hs += cbf_util.rectangular_barrier_jac(*obstacle["bounds"])
+                hs += rectangular_barrier(*obstacle["bounds"])
+                jac_hs += rectangular_barrier_jac(*obstacle["bounds"])
         return hs, jac_hs
 
     def generate_smooth_trajectory(
@@ -377,6 +374,52 @@ def generate_training_data(
         training_data["trajectories"].extend(trajectories)
 
     return training_data
+
+
+def circular_barrier(
+    x0: torch.Tensor, r: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    return [lambda x: torch.linalg.norm(x - x0, axis=-1) ** 2 - r**2]
+
+
+def circular_barrier_jac(
+    x0: torch.Tensor, r: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    return [lambda x: 2 * (x - x0)]
+
+
+def rectangular_barrier(
+    x_min: float, x_max: float, y_min: float, y_max: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    # This is harder to implement because of the disjunction of the constraints.
+    raise NotImplementedError("Rectangular barrier not implemented")
+    return [
+        lambda x: x_min - x[..., 0],
+        lambda x: x[..., 0] - x_max,
+        lambda x: y_min - x[..., 1],
+        lambda x: x[..., 1] - y_max,
+    ]
+
+
+def rectangular_barrier_jac(
+    x_min: float, x_max: float, y_min: float, y_max: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    # This is harder to implement because of the disjunction of the constraints.
+    raise NotImplementedError("Rectangular barrier not implemented")
+    return [
+        lambda x: torch.stack(
+            [-torch.ones(x.shape[:-1]), torch.zeros(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.ones(x.shape[:-1]), torch.zeros(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.zeros(x.shape[:-1]), -torch.ones(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.zeros(x.shape[:-1]), torch.ones(x.shape[:-1])], dim=-1
+        ),
+    ]
 
 
 if __name__ == "__main__":

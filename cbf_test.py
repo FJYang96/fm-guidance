@@ -8,9 +8,11 @@ from torchdiffeq import odeint
 
 from sampling.cbf_util import (
     CBFQP,
+    single_integrator_cbf,
+)
+from toyenv import (
     circular_barrier,
     circular_barrier_jac,
-    single_integrator_cbf,
 )
 
 

@@ -7,8 +7,6 @@ from architecture.traj_unet import TemporalUnet
 from sampling.cbf import CBFGuidedSampler
 from sampling.cbf_util import (
     CBFQP,
-    circular_barrier,
-    circular_barrier_jac,
     single_integrator_cbf,
 )
 from sampling.nominal import NominalSampler
