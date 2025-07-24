@@ -7,11 +7,10 @@ import torch
 from torchdiffeq import odeint
 
 from sampling.cbf_util import (
-    CBF,
     CBFQP,
-    circular_cbf,
-    circular_cbf_alpha,
-    circular_cbf_jac,
+    circular_barrier,
+    circular_barrier_jac,
+    single_integrator_cbf,
 )
 
 
@@ -30,7 +29,7 @@ def simulate_trajectories(x0, t_span, vf):
     Returns: (T, batch, 2) trajectory
     """
     # odeint expects (N, D) for x0, returns (T, N, D)
-    traj = odeint(vf, x0, t_span, method="rk4")
+    traj = odeint(vf, x0, t_span, method="euler")
     return traj  # (T, batch, 2)
 
 
@@ -51,7 +50,7 @@ def visualize_trajectories_gif(trajectory, obstacles, filename="vectorfield.gif"
         plt.scatter(trajectory[t, :, 0], trajectory[t, :, 1], color="C1")
         for obstacle in obstacles:
             draw_circular_obstacle(*obstacle)
-        plt.legend()
+        # plt.legend()
         plt.title(f"t = {t}")
         plt.savefig("vf_tmp.png")
         images.append(imageio.v2.imread("vf_tmp.png"))
@@ -67,36 +66,25 @@ def constant_vector_field(t, x):
 
 
 obstacle_x, obstacle_y, obstacle_r = 2, 0, 1
-obstacles = [(2, 0, 0.5)]  # , (2, 1, 0.5)]
-hs = [circular_cbf(torch.tensor([x, y]), r) for x, y, r in obstacles]
-jac_hs = [circular_cbf_jac(torch.tensor([x, y]), r) for x, y, r in obstacles]
-alphas = [circular_cbf_alpha] * len(hs)
+obstacles = [(0.7, 1, 0.5), (2, -1, 0.5)]
 
-cbf = CBF(
-    f=lambda x: torch.zeros_like(x),
-    g=lambda x: torch.eye(2).unsqueeze(0).repeat(x.shape[0], 1, 1),
-    h=hs,
-    jac_h=jac_hs,
-    alpha=alphas,
-)
+# Construct CBF and CBF-QP
+hs = [circular_barrier(torch.tensor([x, y]), r) for x, y, r in obstacles]
+jac_hs = [circular_barrier_jac(torch.tensor([x, y]), r) for x, y, r in obstacles]
+alphas = [lambda h: h] * len(obstacles)
+cbf = single_integrator_cbf(hs, 2, jac_hs, alphas)
 cbf_qp = CBFQP(cbf)
 
-xx = torch.randn(10, 2)
-uu = torch.randn(10, 2)
-clf_sol = cbf_qp.solve(xx, uu, method="closed_form")
-cvx_sol = cbf_qp.solve(xx, uu, method="cvxpy")
-print(clf_sol.shape, cvx_sol.shape)
-print(torch.allclose(clf_sol, cvx_sol))
+
+def cbf_vector_field(t, x):
+    u_cbf = cbf_qp.solve(x, constant_vector_field(0, x))
+    return u_cbf
 
 
-# def cbf_vector_field(t, x):
-#     return cbf_qp.solve(x, constant_vector_field(0, x))
-
-
-# batch = 20
-# x0 = torch.zeros(batch, 2)
-# x0[:, 1] = torch.linspace(-1, 1, batch)
-# t_span = torch.linspace(0, 4, 30)
-# trajectory = simulate_trajectories(x0, t_span, cbf_vector_field)  # (T, batch, 2)
-# trajectory_np = trajectory.detach().cpu().numpy()
-# visualize_trajectories_gif(trajectory_np, obstacles, filename="results/vectorfield.gif")
+batch = 20
+x0 = torch.zeros(batch, 2)
+x0[:, 1] = torch.linspace(-1, 1, batch)
+t_span = torch.linspace(0, 4, 30)
+trajectory = simulate_trajectories(x0, t_span, cbf_vector_field)  # (T, batch, 2)
+trajectory_np = trajectory.detach().cpu().numpy()
+visualize_trajectories_gif(trajectory_np, obstacles, filename="results/vectorfield.gif")

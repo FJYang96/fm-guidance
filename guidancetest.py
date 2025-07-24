@@ -5,6 +5,12 @@ import torch
 import toyenv
 from architecture.traj_unet import TemporalUnet
 from sampling.cbf import CBFGuidedSampler
+from sampling.cbf_util import (
+    CBFQP,
+    circular_barrier,
+    circular_barrier_jac,
+    single_integrator_cbf,
+)
 from sampling.nominal import NominalSampler
 
 # Gather trajectories for training
@@ -43,10 +49,13 @@ obs_center = torch.tensor([5.0, 5.0])
 obs_radius = 0.5
 env.add_obstacle(obs_center, obs_radius)
 
-h = lambda x: torch.linalg.norm(x - obs_center, axis=-1) - obs_radius
-alpha = lambda h_x: 30 * (torch.exp(h_x) - 1)
+hs = [circular_barrier(obs_center, obs_radius)]
+jac_hs = [circular_barrier_jac(obs_center, obs_radius)]
+alphas = [lambda h: 30 * (torch.exp(h) - 1)] * len(hs)
+cbf = single_integrator_cbf(hs, 2, jac_hs, alphas)
+cbf_qp = CBFQP(cbf)
 
-sampler = CBFGuidedSampler(model, h, alpha, per_state_barrier=True)
+sampler = CBFGuidedSampler(model, cbf_qp, per_state_barrier=True)
 # Trajectory is of shape (num_diffusion_steps, num_samples, num_steps, dim_x)
 trajectory = (
     sampler.sample(
@@ -99,7 +108,7 @@ def visualize_diffusion(trajectory, start, goal):
     plt.close()
 
     # Make a gif of the diffusion
-    imageio.mimsave("diffusion.gif", images, fps=10)
+    imageio.mimsave("results/diffusion.gif", images, fps=10)
 
 
 visualize_diffusion(trajectory[:, 0], test_start, test_goal)

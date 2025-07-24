@@ -7,9 +7,9 @@ import torch
 class CBF:
     def __init__(
         self,
+        h: List[Callable[[torch.Tensor], torch.Tensor]],
         f: Callable[[torch.Tensor], torch.Tensor],
         g: Callable[[torch.Tensor], torch.Tensor],
-        h: List[Callable[[torch.Tensor], torch.Tensor]],
         alpha: List[Callable[[torch.Tensor], torch.Tensor]],
         jac_h: List[Callable[[torch.Tensor], torch.Tensor]] | None = None,
     ):
@@ -63,16 +63,10 @@ class CBFQP:
     def solve(
         self, x: torch.Tensor, u_nom: torch.Tensor, method: str = "cvxpy"
     ) -> torch.Tensor:
-        if method == "cvxpy":
-            return self._solve_cvxpy(x, u_nom)
-        elif method == "closed_form":
+        if len(self.cbf.h) == 1:
             return self._solve_closed_form(x, u_nom)
         else:
-            raise ValueError(f"Invalid method: {method}")
-        # if len(self.cbf.h) == 1:
-        #     return self._solve_closed_form(x, u_nom)
-        # else:
-        #     return self._solve_cvxpy(x, u_nom)
+            return self._solve_cvxpy(x, u_nom)
 
     def _solve_closed_form(self, x: torch.Tensor, u_nom: torch.Tensor) -> torch.Tensor:
         assert len(self.cbf.h) == 1, "Closed-form solver only supports single CBF"
@@ -123,15 +117,25 @@ class CBFQP:
         return torch.stack(u_cbf, dim=0)
 
 
-def circular_cbf(x0: torch.Tensor, r: float) -> Callable[[torch.Tensor], torch.Tensor]:
+def single_integrator_cbf(hs, dim_x, jac_hs=None, alphas=None):
+    if alphas is None:
+        alphas = [lambda h: h] * len(hs)
+    return CBF(
+        h=hs,
+        f=lambda x: torch.zeros_like(x),
+        g=lambda x: torch.eye(dim_x).unsqueeze(0).repeat(x.shape[0], 1, 1),
+        jac_h=jac_hs,
+        alpha=alphas,
+    )
+
+
+def circular_barrier(
+    x0: torch.Tensor, r: float
+) -> Callable[[torch.Tensor], torch.Tensor]:
     return lambda x: torch.linalg.norm(x - x0, axis=-1) ** 2 - r**2
 
 
-def circular_cbf_jac(
+def circular_barrier_jac(
     x0: torch.Tensor, r: float
 ) -> Callable[[torch.Tensor], torch.Tensor]:
     return lambda x: 2 * (x - x0)
-
-
-def circular_cbf_alpha(h: torch.Tensor) -> torch.Tensor:
-    return torch.ones_like(h)
