@@ -25,14 +25,16 @@ class Sampler(ABC):
             ts: The time step.
             num_steps: The number of steps to take.
         Returns:
-            The sampled trajectory.
+            The sampled trajectory: (num_steps, num_samples, dim_x)
         """
         self.conditions = conditions
-        return torchdiffeq.odeint(
-            self.forward,
-            ic,
-            torch.linspace(0, ts, num_steps, device=ic.device).float(),
-            atol=1e-4,
-            rtol=1e-4,
-            method="rk4",
-        )
+        with torch.no_grad():
+            traj = torchdiffeq.odeint(
+                self.forward,
+                ic,
+                torch.linspace(0, ts, num_steps, device=ic.device).float(),
+                atol=1e-4,
+                rtol=1e-4,
+                method="rk4",
+            )
+        return traj

@@ -71,7 +71,10 @@ obstacles = [(0.7, 1, 0.5), (2, -1, 0.5)]
 # Construct CBF and CBF-QP
 hs = [circular_barrier(torch.tensor([x, y]), r) for x, y, r in obstacles]
 jac_hs = [circular_barrier_jac(torch.tensor([x, y]), r) for x, y, r in obstacles]
-alphas = [lambda h: h] * len(obstacles)
+# Flatten the list of lists
+hs = [item for sublist in hs for item in sublist]
+jac_hs = [item for sublist in jac_hs for item in sublist]
+alphas = [lambda h: h] * len(hs)
 cbf = single_integrator_cbf(hs, 2, jac_hs, alphas)
 cbf_qp = CBFQP(cbf)
 

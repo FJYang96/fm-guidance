@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
 
+import sampling.cbf_util as cbf_util
+
 
 class Environment2D:
     """
@@ -45,7 +47,7 @@ class Environment2D:
         y = random.uniform(self.y_min, self.y_max)
         return (x, y)
 
-    def add_obstacle(self, center: Tuple[float, float], radius: float):
+    def add_circular_obstacle(self, center: Tuple[float, float], radius: float):
         """
         Add a circular obstacle to the environment.
 
@@ -94,6 +96,25 @@ class Environment2D:
                     return True
 
         return False
+
+    def generate_barrier(self):
+        """
+        Generate a list of barrier functions for the environment.
+        Return:
+            h: list of barrier functions
+            jac_h: list of barrier function Jacobians
+        """
+        hs, jac_hs = [], []
+        for obstacle in self.obstacles:
+            if obstacle["type"] == "circle":
+                hs += cbf_util.circular_barrier(obstacle["center"], obstacle["radius"])
+                jac_hs += cbf_util.circular_barrier_jac(
+                    obstacle["center"], obstacle["radius"]
+                )
+            elif obstacle["type"] == "rectangle":
+                hs += cbf_util.rectangular_barrier(*obstacle["bounds"])
+                jac_hs += cbf_util.rectangular_barrier_jac(*obstacle["bounds"])
+        return hs, jac_hs
 
     def generate_smooth_trajectory(
         self,
@@ -202,6 +223,7 @@ class Environment2D:
 
     def visualize_environment(
         self,
+        ax: plt.Axes,
         start: Optional[Tuple[float, float]] = None,
         goal: Optional[Tuple[float, float]] = None,
         trajectories: Optional[List[np.ndarray]] = None,
@@ -216,8 +238,6 @@ class Environment2D:
             trajectories: list of trajectory arrays to plot
             figsize: figure size for the plot
         """
-        fig, ax = plt.subplots(figsize=figsize)
-
         # Plot environment bounds
         ax.set_xlim(self.x_min, self.x_max)
         ax.set_ylim(self.y_min, self.y_max)
@@ -257,9 +277,17 @@ class Environment2D:
                     trajectory[:, 0],
                     trajectory[:, 1],
                     color=colors[i],
-                    alpha=0.7,
+                    linestyle="--",
+                    alpha=0.3,
                     linewidth=2,
                     label=f"Trajectory {i + 1}" if i < 5 else None,
+                )
+                ax.scatter(
+                    trajectory[:, 0],
+                    trajectory[:, 1],
+                    color=colors[i],
+                    marker="^",
+                    alpha=np.linspace(0.3, 0.8, trajectory.shape[0]),
                 )
 
         ax.set_xlabel("X")
@@ -267,7 +295,6 @@ class Environment2D:
         ax.set_title("2D Environment with Trajectories")
         ax.legend()
         plt.tight_layout()
-        plt.show()
 
     def clear_obstacles(self):
         """Clear all obstacles from the environment."""
