@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from .abstract_sampler import Sampler
-from .cbf_util import CBFQP
+from .util import CBFQP
 
 
 class CBFGuidedSampler(Sampler):

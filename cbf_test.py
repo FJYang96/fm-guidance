@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torchdiffeq import odeint
 
-from sampling.cbf_util import (
+from sampling.util import (
     CBFQP,
     single_integrator_cbf,
 )

@@ -4,12 +4,12 @@ import torch
 
 import toyenv
 from architecture.traj_unet import TemporalUnet
-from sampling.cbf import CBFGuidedSampler
-from sampling.cbf_util import (
+from sampling.barrier import CBFGuidedSampler
+from sampling.nominal import NominalSampler
+from sampling.util import (
     CBFQP,
     single_integrator_cbf,
 )
-from sampling.nominal import NominalSampler
 
 # Gather trajectories for training
 env = toyenv.Environment2D(bounds=(0.0, 10.0, 0.0, 10.0))
