@@ -32,8 +32,9 @@ def train_fm_model(
                 vt = model(t, xt)
             train_loss = torch.mean((vt - ut) ** 2)
             train_loss.backward()
+            train_loss = torch.mean((vt - ut) ** 2)
+            train_loss.backward()
             optimizer.step()
-        # print(f"Epoch {epoch:02d} Training loss: {train_loss.item():.4f}")
 
         if val_loader is not None and epoch % 2 == 0:
             with torch.no_grad():
@@ -51,7 +52,8 @@ def train_fm_model(
                         vt = model(t, xt)
                     val_loss += torch.mean((vt - ut) ** 2).item()
                 print(
-                    f"Epoch {epoch:02d} Validation loss: {val_loss / len(val_loader):.4f}"
+                    f"Epoch {epoch:03d}\t Training loss: {train_loss.item():.4f}\t"
+                    f"Validation loss: {val_loss / len(val_loader):.4f}"
                 )
 
     torch.save(model.state_dict(), f"models/model_{epoch}.pth")

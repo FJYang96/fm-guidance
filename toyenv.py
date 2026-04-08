@@ -1,8 +1,9 @@
 import random
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 from scipy.interpolate import interp1d
 
 
@@ -45,7 +46,7 @@ class Environment2D:
         y = random.uniform(self.y_min, self.y_max)
         return (x, y)
 
-    def add_obstacle(self, center: Tuple[float, float], radius: float):
+    def add_circular_obstacle(self, center: Tuple[float, float], radius: float):
         """
         Add a circular obstacle to the environment.
 
@@ -94,6 +95,23 @@ class Environment2D:
                     return True
 
         return False
+
+    def generate_barrier(self):
+        """
+        Generate a list of barrier functions for the environment.
+        Return:
+            h: list of barrier functions
+            jac_h: list of barrier function Jacobians
+        """
+        hs, jac_hs = [], []
+        for obstacle in self.obstacles:
+            if obstacle["type"] == "circle":
+                hs += circular_barrier(obstacle["center"], obstacle["radius"])
+                jac_hs += circular_barrier_jac(obstacle["center"], obstacle["radius"])
+            elif obstacle["type"] == "rectangle":
+                hs += rectangular_barrier(*obstacle["bounds"])
+                jac_hs += rectangular_barrier_jac(*obstacle["bounds"])
+        return hs, jac_hs
 
     def generate_smooth_trajectory(
         self,
@@ -202,6 +220,7 @@ class Environment2D:
 
     def visualize_environment(
         self,
+        ax: plt.Axes,
         start: Optional[Tuple[float, float]] = None,
         goal: Optional[Tuple[float, float]] = None,
         trajectories: Optional[List[np.ndarray]] = None,
@@ -216,8 +235,6 @@ class Environment2D:
             trajectories: list of trajectory arrays to plot
             figsize: figure size for the plot
         """
-        fig, ax = plt.subplots(figsize=figsize)
-
         # Plot environment bounds
         ax.set_xlim(self.x_min, self.x_max)
         ax.set_ylim(self.y_min, self.y_max)
@@ -257,9 +274,17 @@ class Environment2D:
                     trajectory[:, 0],
                     trajectory[:, 1],
                     color=colors[i],
-                    alpha=0.7,
+                    linestyle="--",
+                    alpha=0.3,
                     linewidth=2,
                     label=f"Trajectory {i + 1}" if i < 5 else None,
+                )
+                ax.scatter(
+                    trajectory[:, 0],
+                    trajectory[:, 1],
+                    color=colors[i],
+                    marker="^",
+                    alpha=np.linspace(0.3, 0.8, trajectory.shape[0]),
                 )
 
         ax.set_xlabel("X")
@@ -267,7 +292,6 @@ class Environment2D:
         ax.set_title("2D Environment with Trajectories")
         ax.legend()
         plt.tight_layout()
-        plt.show()
 
     def clear_obstacles(self):
         """Clear all obstacles from the environment."""
@@ -350,6 +374,52 @@ def generate_training_data(
         training_data["trajectories"].extend(trajectories)
 
     return training_data
+
+
+def circular_barrier(
+    x0: torch.Tensor, r: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    return [lambda x: torch.linalg.norm(x - x0, axis=-1) ** 2 - r**2]
+
+
+def circular_barrier_jac(
+    x0: torch.Tensor, r: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    return [lambda x: 2 * (x - x0)]
+
+
+def rectangular_barrier(
+    x_min: float, x_max: float, y_min: float, y_max: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    # This is harder to implement because of the disjunction of the constraints.
+    raise NotImplementedError("Rectangular barrier not implemented")
+    return [
+        lambda x: x_min - x[..., 0],
+        lambda x: x[..., 0] - x_max,
+        lambda x: y_min - x[..., 1],
+        lambda x: x[..., 1] - y_max,
+    ]
+
+
+def rectangular_barrier_jac(
+    x_min: float, x_max: float, y_min: float, y_max: float
+) -> List[Callable[[torch.Tensor], torch.Tensor]]:
+    # This is harder to implement because of the disjunction of the constraints.
+    raise NotImplementedError("Rectangular barrier not implemented")
+    return [
+        lambda x: torch.stack(
+            [-torch.ones(x.shape[:-1]), torch.zeros(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.ones(x.shape[:-1]), torch.zeros(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.zeros(x.shape[:-1]), -torch.ones(x.shape[:-1])], dim=-1
+        ),
+        lambda x: torch.stack(
+            [torch.zeros(x.shape[:-1]), torch.ones(x.shape[:-1])], dim=-1
+        ),
+    ]
 
 
 if __name__ == "__main__":

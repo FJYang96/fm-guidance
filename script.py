@@ -7,7 +7,7 @@ import toyenv
 import training as train
 from architecture.mlp import MLP
 from architecture.traj_unet import TemporalUnet
-from guidance import NominalSampler
+from sampling.nominal import NominalSampler
 
 # Gather trajectories for training
 env = toyenv.Environment2D(bounds=(0.0, 10.0, 0.0, 10.0))
