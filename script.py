@@ -17,7 +17,7 @@ data_num_samples = 50  # number of (start, goal) pairs
 num_trajectories_per_pair = 100
 num_steps = 32
 batch_size = 64
-n_epochs = 200
+n_epochs = 500
 sigma = 0.0
 
 # Generate dataset
