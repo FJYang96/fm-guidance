@@ -98,7 +98,7 @@ With several obstacles the QP is solved with CVXPY, looping over the batch. The 
 
 | Item | Value |
 |---|---|
-| Binary "is-0" classifier, test accuracy | 99.73% |
+| Binary "is-0" classifier, test accuracy | 99.68% (losses 0.044 → 0.021 → 0.015 over 3 epochs) |
 | Class-conditional flow, final loss (10 epochs) | 0.1535 |
 | Class-conditional samples | clean 0–9 grid |
 | "Avoid 0" (unconditional, 1 sample) | produces a non-zero digit; one sample, so no statistical weight |
